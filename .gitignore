@@ -34,3 +34,8 @@
 *cmake-build-*
 *.idea
 **build**
+
+# Compiled with CMake
+exercises/ch*/CMakeFiles/
+exercises/ch*/Makefile
+exercises/ch*/bin/

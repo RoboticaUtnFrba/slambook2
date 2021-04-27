@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+
+import subprocess as sp
+import os
+
+IMAGE_NAME = "slambook-docker"
+UID = os.getuid()
+
+def run_dev_environment():
+    docker_args = []
+    dockerfile  = 'slambook-docker'
+
+    docker_args.append("-it")
+    docker_args.append("--rm")
+    docker_args.append("--env=DISPLAY")
+    docker_args.append("--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw")
+    docker_args.append("--volume=$HOME/.Xauthority:/root/.Xauthority:rw")
+    docker_args.append(f"--name {IMAGE_NAME}")
+    docker_args.append("--privileged")
+    docker_args.append("--network=host")
+    docker_args.append("--cap-add=IPC_LOCK")
+    docker_args.append("--cap-add=sys_nice")
+    docker_args.append(f"--user {UID}:{UID}")
+    # Use NVIDIA
+    docker_args.append("--gpus=all")
+
+    docker_args.append("-e ROS_HOSTNAME=localhost")
+    docker_args.append("-e ROS_MASTER_URI=http://localhost:11311")
+    # Mount workspace
+    repo_root = sp.check_output('git rev-parse --show-toplevel'.split() ).strip().decode()
+    docker_args.append(f"--volume {repo_root}/exercises:/exercises:rw")
+
+    # Join arguments together separated by a space
+    docker_args = ' '.join(docker_args)
+    docker_command = f"docker run {docker_args} {dockerfile}"
+
+    sp.call("xhost +local:docker", shell=True)
+    sp.call(docker_command, shell=True)
+    sp.call("xhost -local:docker", shell=True)
+
+def attach_dev_environment():
+    command = f"docker exec -it --user {UID}:{UID} {IMAGE_NAME}"
+    sp.call(command, shell=True)
+
+def is_running():
+    command = f"docker ps | grep {IMAGE_NAME} > /dev/null"
+    try:
+        sp.check_call(command, shell=True)
+    except Exception:
+        return False
+
+    return True
+
+def main():
+    if not is_running():
+        run_dev_environment()
+    else:
+        attach_dev_environment()
+
+if __name__ == '__main__':
+    main()
